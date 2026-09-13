@@ -1,0 +1,8 @@
+name = "my-mcp"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+[vars]
+GITHUB_OWNER = "Meldanna"
+GITHUB_REPO = "The-Riparian-Gaze"
+# GITHUB_TOKEN 在 Cloudflare 后台设置 Secret，不要写在这里
