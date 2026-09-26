@@ -1,23 +1,19 @@
-// ==================== GitHub MCP Server v2.0 ====================
-// 单文件版 - 适用于 Cloudflare Worker
-// 17 个工具：仓库管理、文件操作、Issue、分支、PR
+// ==================== GitHub MCP Server v2.1 ====================
+// Cloudflare Worker 版
+// 特性：密钥验证 + 多用户支持 + 17 个工具
+//
+// 使用方式：
+//   自己用：https://域名/mcp?key=你的密钥
+//   别人用：请求头带 Authorization: Bearer ghp_他的token
+//   别人用：或 URL 带 https://域名/mcp?token=ghp_他的token
 
 // ==================== 工具定义 ====================
 const REPO_PARAMS = {
-  owner: {
-    type: "string",
-    description: "仓库所有者，不填则使用默认配置",
-    default: ""
-  },
-  repo: {
-    type: "string",
-    description: "仓库名称，不填则使用默认配置",
-    default: ""
-  }
+  owner: { type: "string", description: "仓库所有者，不填则使用默认配置", default: "" },
+  repo: { type: "string", description: "仓库名称，不填则使用默认配置", default: "" }
 };
 
 const TOOLS = [
-  // === 仓库管理 ===
   {
     name: "create_repo",
     description: "创建一个新的 GitHub 仓库。",
@@ -37,10 +33,7 @@ const TOOLS = [
     description: "删除一个 GitHub 仓库（危险操作！）。",
     inputSchema: {
       type: "object",
-      properties: {
-        ...REPO_PARAMS,
-        confirm: { type: "string", description: "输入仓库名确认删除" }
-      },
+      properties: { ...REPO_PARAMS, confirm: { type: "string", description: "输入仓库名确认删除" } },
       required: ["repo", "confirm"]
     }
   },
@@ -58,21 +51,14 @@ const TOOLS = [
   {
     name: "get_repo_info",
     description: "获取仓库的详细信息（Star、Fork、描述等）。",
-    inputSchema: {
-      type: "object",
-      properties: { ...REPO_PARAMS }
-    }
+    inputSchema: { type: "object", properties: { ...REPO_PARAMS } }
   },
-  // === 文件操作 ===
   {
     name: "list_files",
     description: "列出仓库的文件目录结构。",
     inputSchema: {
       type: "object",
-      properties: {
-        ...REPO_PARAMS,
-        path: { type: "string", description: "目录路径，默认根目录", default: "" }
-      }
+      properties: { ...REPO_PARAMS, path: { type: "string", description: "目录路径，默认根目录", default: "" } }
     }
   },
   {
@@ -80,10 +66,7 @@ const TOOLS = [
     description: "读取仓库中指定文件的内容。",
     inputSchema: {
       type: "object",
-      properties: {
-        ...REPO_PARAMS,
-        path: { type: "string", description: "文件路径" }
-      },
+      properties: { ...REPO_PARAMS, path: { type: "string", description: "文件路径" } },
       required: ["path"]
     }
   },
@@ -92,10 +75,7 @@ const TOOLS = [
     description: "在仓库中搜索包含关键词的代码。",
     inputSchema: {
       type: "object",
-      properties: {
-        ...REPO_PARAMS,
-        keyword: { type: "string", description: "搜索关键词" }
-      },
+      properties: { ...REPO_PARAMS, keyword: { type: "string", description: "搜索关键词" } },
       required: ["keyword"]
     }
   },
@@ -119,15 +99,10 @@ const TOOLS = [
     description: "删除仓库中的文件。",
     inputSchema: {
       type: "object",
-      properties: {
-        ...REPO_PARAMS,
-        path: { type: "string", description: "文件路径" },
-        message: { type: "string", description: "提交信息", default: "Delete via MCP" }
-      },
+      properties: { ...REPO_PARAMS, path: { type: "string", description: "文件路径" }, message: { type: "string", description: "提交信息", default: "Delete via MCP" } },
       required: ["path"]
     }
   },
-  // === Issue 管理 ===
   {
     name: "create_issue",
     description: "创建一个新 Issue。",
@@ -147,11 +122,7 @@ const TOOLS = [
     description: "列出仓库的 Issue。",
     inputSchema: {
       type: "object",
-      properties: {
-        ...REPO_PARAMS,
-        state: { type: "string", description: "状态：open, closed, all", default: "open" },
-        per_page: { type: "number", description: "数量", default: 10 }
-      }
+      properties: { ...REPO_PARAMS, state: { type: "string", description: "状态：open, closed, all", default: "open" }, per_page: { type: "number", description: "数量", default: 10 } }
     }
   },
   {
@@ -159,10 +130,7 @@ const TOOLS = [
     description: "关闭一个 Issue。",
     inputSchema: {
       type: "object",
-      properties: {
-        ...REPO_PARAMS,
-        issue_number: { type: "number", description: "Issue 编号" }
-      },
+      properties: { ...REPO_PARAMS, issue_number: { type: "number", description: "Issue 编号" } },
       required: ["issue_number"]
     }
   },
@@ -171,49 +139,30 @@ const TOOLS = [
     description: "给 Issue 添加评论。",
     inputSchema: {
       type: "object",
-      properties: {
-        ...REPO_PARAMS,
-        issue_number: { type: "number", description: "Issue 编号" },
-        body: { type: "string", description: "评论内容" }
-      },
+      properties: { ...REPO_PARAMS, issue_number: { type: "number", description: "Issue 编号" }, body: { type: "string", description: "评论内容" } },
       required: ["issue_number", "body"]
     }
   },
-  // === 分支管理 ===
   {
     name: "list_branches",
     description: "列出仓库的所有分支。",
-    inputSchema: {
-      type: "object",
-      properties: { ...REPO_PARAMS }
-    }
+    inputSchema: { type: "object", properties: { ...REPO_PARAMS } }
   },
   {
     name: "create_branch",
     description: "创建新分支。",
     inputSchema: {
       type: "object",
-      properties: {
-        ...REPO_PARAMS,
-        branch_name: { type: "string", description: "新分支名" },
-        from_branch: { type: "string", description: "基于哪个分支", default: "main" }
-      },
+      properties: { ...REPO_PARAMS, branch_name: { type: "string", description: "新分支名" }, from_branch: { type: "string", description: "基于哪个分支", default: "main" } },
       required: ["branch_name"]
     }
   },
-  // === PR 管理 ===
   {
     name: "create_pull_request",
     description: "创建 Pull Request。",
     inputSchema: {
       type: "object",
-      properties: {
-        ...REPO_PARAMS,
-        title: { type: "string", description: "PR 标题" },
-        body: { type: "string", description: "PR 描述", default: "" },
-        head: { type: "string", description: "源分支" },
-        base: { type: "string", description: "目标分支", default: "main" }
-      },
+      properties: { ...REPO_PARAMS, title: { type: "string", description: "PR 标题" }, body: { type: "string", description: "PR 描述", default: "" }, head: { type: "string", description: "源分支" }, base: { type: "string", description: "目标分支", default: "main" } },
       required: ["title", "head"]
     }
   },
@@ -222,15 +171,51 @@ const TOOLS = [
     description: "列出 Pull Request。",
     inputSchema: {
       type: "object",
-      properties: {
-        ...REPO_PARAMS,
-        state: { type: "string", description: "状态：open, closed, all", default: "open" }
-      }
+      properties: { ...REPO_PARAMS, state: { type: "string", description: "状态：open, closed, all", default: "open" } }
     }
   }
 ];
 
-// ==================== GitHub API 封装 ====================
+// ==================== 认证 ====================
+function authenticate(request, env) {
+  const url = new URL(request.url);
+
+  // 方式1：URL 带密钥（自己用）→ 使用环境变量中的 Token
+  const key = url.searchParams.get("key");
+  if (key && key === env.MCP_SECRET) {
+    return {
+      token: env.GITHUB_TOKEN,
+      owner: env.GITHUB_OWNER,
+      repo: env.GITHUB_REPO
+    };
+  }
+
+  // 方式2：URL 带 GitHub Token（别人用）
+  const urlToken = url.searchParams.get("token");
+  if (urlToken && (urlToken.startsWith("ghp_") || urlToken.startsWith("github_pat_"))) {
+    return {
+      token: urlToken,
+      owner: "",
+      repo: ""
+    };
+  }
+
+  // 方式3：Header 带 GitHub Token（别人用）
+  const authHeader = request.headers.get("Authorization") || "";
+  const headerToken = authHeader.replace("Bearer ", "");
+  if (headerToken && (headerToken.startsWith("ghp_") || headerToken.startsWith("github_pat_"))) {
+    return {
+      token: headerToken,
+      owner: "",
+      repo: ""
+    };
+  }
+
+  // 未认证
+  return null;
+}
+
+// ==================== GitHub API ====================
 function resolveRepo(config, args) {
   return {
     owner: (args && args.owner) || config.owner,
@@ -268,25 +253,18 @@ async function callTool(config, name, args) {
   const { owner, repo } = resolveRepo(config, args);
 
   switch (name) {
-    // ====== 仓库管理 ======
     case "create_repo": {
       const data = await githubFetch(token, "POST", "https://api.github.com/user/repos", {
-        name: args.name,
-        description: args.description || "",
-        private: args.private || false,
+        name: args.name, description: args.description || "", private: args.private || false,
         auto_init: args.auto_init !== undefined ? args.auto_init : true
       });
       return `✅ 仓库创建成功！\n📦 ${data.full_name}\n🔗 ${data.html_url}\n🔒 私有: ${data.private ? "是" : "否"}`;
     }
-
     case "delete_repo": {
-      if (args.confirm !== args.repo) {
-        return `❌ 确认失败！请输入仓库名 "${args.repo}" 来确认删除。`;
-      }
+      if (args.confirm !== args.repo) return `❌ 确认失败！请输入仓库名 "${args.repo}" 来确认删除。`;
       await githubFetch(token, "DELETE", `https://api.github.com/repos/${owner}/${repo}`);
       return `✅ 仓库 ${owner}/${repo} 已删除。`;
     }
-
     case "list_repos": {
       const sort = args.sort || "updated";
       const perPage = args.per_page || 30;
@@ -299,25 +277,20 @@ async function callTool(config, name, args) {
       });
       return `共 ${data.length} 个仓库:\n\n${list.join("\n\n")}`;
     }
-
     case "get_repo_info": {
       const data = await repoAPI(token, owner, repo, "GET", "");
       return `📦 ${data.full_name}\n📝 ${data.description || "(无描述)"}\n⭐ Stars: ${data.stargazers_count} | 🍴 Forks: ${data.forks_count}\n🌿 默认分支: ${data.default_branch}\n🔗 ${data.html_url}\n📅 创建: ${data.created_at}\n📅 更新: ${data.updated_at}`;
     }
-
-    // ====== 文件操作 ======
     case "list_files": {
       const path = args.path || "";
       const data = await repoAPI(token, owner, repo, "GET", `/contents/${path}`);
       if (!Array.isArray(data)) return `${path} 是一个文件，不是目录`;
-      const list = data.map(item => {
+      return data.map(item => {
         const icon = item.type === "dir" ? "📁" : "📄";
         const size = item.size ? ` (${item.size} bytes)` : "";
         return `${icon} ${item.path}${size}`;
-      });
-      return list.join("\n");
+      }).join("\n");
     }
-
     case "read_file": {
       const data = await repoAPI(token, owner, repo, "GET", `/contents/${args.path}`);
       if (data.encoding === "base64") {
@@ -326,133 +299,84 @@ async function callTool(config, name, args) {
       }
       return `无法读取文件: ${args.path}`;
     }
-
     case "search_code": {
       const url = `https://api.github.com/search/code?q=${encodeURIComponent(args.keyword)}+repo:${owner}/${repo}`;
       const data = await githubFetch(token, "GET", url);
-      if (!data.items || data.items.length === 0) {
-        return `没有找到包含 "${args.keyword}" 的代码`;
-      }
+      if (!data.items || data.items.length === 0) return `没有找到包含 "${args.keyword}" 的代码`;
       const results = data.items.slice(0, 10).map(item => `📄 ${item.path}`);
       return `找到 ${data.total_count} 个结果:\n${results.join("\n")}`;
     }
-
     case "create_or_update_file": {
-      let sha = undefined;
+      let sha;
       const ref = args.branch ? `?ref=${args.branch}` : "";
-      try {
-        const existing = await repoAPI(token, owner, repo, "GET", `/contents/${args.path}${ref}`);
-        sha = existing.sha;
-      } catch (e) { /* 新文件 */ }
-      const body = {
-        message: args.message || "Update via MCP",
-        content: btoa(unescape(encodeURIComponent(args.content)))
-      };
+      try { sha = (await repoAPI(token, owner, repo, "GET", `/contents/${args.path}${ref}`)).sha; } catch (e) {}
+      const body = { message: args.message || "Update via MCP", content: btoa(unescape(encodeURIComponent(args.content))) };
       if (sha) body.sha = sha;
       if (args.branch) body.branch = args.branch;
       await repoAPI(token, owner, repo, "PUT", `/contents/${args.path}`, body);
       return sha ? `✅ 已更新: ${args.path}` : `✅ 已创建: ${args.path}`;
     }
-
     case "delete_file": {
       const existing = await repoAPI(token, owner, repo, "GET", `/contents/${args.path}`);
-      await githubFetch(token, "DELETE",
-        `https://api.github.com/repos/${owner}/${repo}/contents/${args.path}`,
-        { message: args.message || "Delete via MCP", sha: existing.sha }
-      );
+      await githubFetch(token, "DELETE", `https://api.github.com/repos/${owner}/${repo}/contents/${args.path}`,
+        { message: args.message || "Delete via MCP", sha: existing.sha });
       return `✅ 已删除: ${args.path}`;
     }
-
-    // ====== Issue ======
     case "create_issue": {
       const data = await repoAPI(token, owner, repo, "POST", "/issues", {
-        title: args.title,
-        body: args.body || "",
-        labels: args.labels || []
+        title: args.title, body: args.body || "", labels: args.labels || []
       });
       return `✅ Issue #${data.number}: ${data.title}\n🔗 ${data.html_url}`;
     }
-
     case "list_issues": {
       const state = args.state || "open";
-      const perPage = args.per_page || 10;
-      const data = await repoAPI(token, owner, repo, "GET", `/issues?state=${state}&per_page=${perPage}`);
+      const data = await repoAPI(token, owner, repo, "GET", `/issues?state=${state}&per_page=${args.per_page || 10}`);
       if (!data.length) return `没有 ${state} 状态的 Issue`;
-      const list = data.map(i => {
+      return data.map(i => {
         const labels = i.labels.map(l => `🏷️${l.name}`).join(" ");
         return `#${i.number} [${i.state}] ${i.title} ${labels}`;
-      });
-      return list.join("\n");
+      }).join("\n");
     }
-
     case "close_issue": {
       const data = await repoAPI(token, owner, repo, "PATCH", `/issues/${args.issue_number}`, { state: "closed" });
       return `✅ Issue #${data.number} 已关闭`;
     }
-
     case "comment_issue": {
       const data = await repoAPI(token, owner, repo, "POST", `/issues/${args.issue_number}/comments`, { body: args.body });
       return `✅ 评论已添加\n🔗 ${data.html_url}`;
     }
-
-    // ====== 分支 ======
     case "list_branches": {
       const data = await repoAPI(token, owner, repo, "GET", "/branches");
       if (!data.length) return "没有分支";
       return `分支列表:\n${data.map(b => `🌿 ${b.name}`).join("\n")}`;
     }
-
     case "create_branch": {
       const from = args.from_branch || "main";
       const ref = await repoAPI(token, owner, repo, "GET", `/git/ref/heads/${from}`);
-      await repoAPI(token, owner, repo, "POST", "/git/refs", {
-        ref: `refs/heads/${args.branch_name}`,
-        sha: ref.object.sha
-      });
+      await repoAPI(token, owner, repo, "POST", "/git/refs", { ref: `refs/heads/${args.branch_name}`, sha: ref.object.sha });
       return `✅ 分支 ${args.branch_name} 已创建（基于 ${from}）`;
     }
-
-    // ====== PR ======
     case "create_pull_request": {
       const data = await repoAPI(token, owner, repo, "POST", "/pulls", {
-        title: args.title,
-        body: args.body || "",
-        head: args.head,
-        base: args.base || "main"
+        title: args.title, body: args.body || "", head: args.head, base: args.base || "main"
       });
       return `✅ PR #${data.number}: ${data.title}\n🔗 ${data.html_url}`;
     }
-
     case "list_pull_requests": {
       const state = args.state || "open";
       const data = await repoAPI(token, owner, repo, "GET", `/pulls?state=${state}`);
       if (!data.length) return `没有 ${state} 状态的 PR`;
       return data.map(p => `#${p.number} [${p.state}] ${p.title}\n   ${p.head.ref} → ${p.base.ref}`).join("\n\n");
     }
-
-    default:
-      return `未知工具: ${name}`;
+    default: return `未知工具: ${name}`;
   }
 }
 
-// ==================== MCP 协议处理 ====================
-function jsonRpcResponse(id, result) {
-  return { jsonrpc: "2.0", id, result };
-}
+// ==================== MCP 协议 ====================
+function jsonRpcResponse(id, result) { return { jsonrpc: "2.0", id, result }; }
+function jsonRpcError(id, code, message) { return { jsonrpc: "2.0", id, error: { code, message } }; }
 
-function jsonRpcError(id, code, message) {
-  return { jsonrpc: "2.0", id, error: { code, message } };
-}
-
-function getConfig(env) {
-  return {
-    token: env.GITHUB_TOKEN,
-    owner: env.GITHUB_OWNER,
-    repo: env.GITHUB_REPO
-  };
-}
-
-async function handleMCP(request, env) {
+async function handleMCP(request, env, config) {
   const body = await request.json();
   const { id, method, params } = body;
 
@@ -461,69 +385,72 @@ async function handleMCP(request, env) {
       return jsonRpcResponse(id, {
         protocolVersion: "2024-11-05",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "GitHub MCP Server", version: "2.0.0" }
+        serverInfo: { name: "GitHub MCP Server", version: "2.1.0" }
       });
-
-    case "notifications/initialized":
-      return null;
-
-    case "tools/list":
-      return jsonRpcResponse(id, { tools: TOOLS });
-
+    case "notifications/initialized": return null;
+    case "tools/list": return jsonRpcResponse(id, { tools: TOOLS });
     case "tools/call": {
       try {
-        const result = await callTool(getConfig(env), params.name, params.arguments || {});
-        return jsonRpcResponse(id, {
-          content: [{ type: "text", text: result }]
-        });
+        const result = await callTool(config, params.name, params.arguments || {});
+        return jsonRpcResponse(id, { content: [{ type: "text", text: result }] });
       } catch (e) {
-        return jsonRpcResponse(id, {
-          content: [{ type: "text", text: `❌ 错误: ${e.message}` }],
-          isError: true
-        });
+        return jsonRpcResponse(id, { content: [{ type: "text", text: `❌ 错误: ${e.message}` }], isError: true });
       }
     }
-
-    case "ping":
-      return jsonRpcResponse(id, {});
-
-    default:
-      return jsonRpcError(id, -32601, `Method not found: ${method}`);
+    case "ping": return jsonRpcResponse(id, {});
+    default: return jsonRpcError(id, -32601, `Method not found: ${method}`);
   }
 }
 
 // ==================== Cloudflare Worker 入口 ====================
 export default {
   async fetch(request, env) {
+    // CORS
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type"
+          "Access-Control-Allow-Headers": "Content-Type, Authorization"
         }
       });
     }
 
     const url = new URL(request.url);
 
+    // 健康检查（不需要认证）
     if (url.pathname === "/" && request.method === "GET") {
       return new Response(JSON.stringify({
         status: "ok",
         server: "GitHub MCP Server",
-        version: "2.0.0",
-        tools: TOOLS.map(t => t.name)
+        version: "2.1.0",
+        auth: "Use ?key=SECRET for owner, or ?token=ghp_xxx / Authorization header for public users",
+        tools: TOOLS.length + " tools available"
       }), { headers: { "Content-Type": "application/json" } });
     }
 
+    // MCP 端点
     if (url.pathname === "/mcp" && request.method === "POST") {
-      const result = await handleMCP(request, env);
+      // 认证检查
+      const config = authenticate(request, env);
+      if (!config) {
+        return new Response(JSON.stringify({
+          error: "Unauthorized",
+          message: "请提供认证信息",
+          usage: {
+            owner_mode: "URL 添加 ?key=你的密钥",
+            public_mode: "URL 添加 ?token=ghp_你的GitHub_Token 或请求头 Authorization: Bearer ghp_xxx"
+          }
+        }), {
+          status: 401,
+          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+        });
+      }
+
+      const result = await handleMCP(request, env, config);
       if (!result) return new Response(null, { status: 204 });
       return new Response(JSON.stringify(result), {
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
-        }
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
       });
     }
 
