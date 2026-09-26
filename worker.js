@@ -174,7 +174,31 @@ const TOOLS = [
       type: "object",
       properties: { ...REPO_PARAMS, state: { type: "string", description: "状态：open, closed, all", default: "open" } }
     }
-  }
+  },
+  {
+ name: "create_files",
+ description: "批量创建/更新仓库中的多个文件，自动提交。",
+ inputSchema: {
+ type: "object",
+ properties: {
+ ...REPO_PARAMS,
+ files: {
+ type: "array",
+ items: {
+ type: "object",
+ properties: {
+ path: { type: "string", description: "文件路径" },
+ content: { type: "string", description: "文件内容" },
+ message: { type: "string", description: "提交信息", default: "Update via MCP" }
+ },
+ required: ["path", "content"]
+ }
+ },
+ commit_message: { type: "string", description: "统一提交信息", default: "Batch upload via MCP" }
+ },
+ required: ["files"]
+ }
+}
 ];
 
 // ==================== 认证 ====================
@@ -284,6 +308,29 @@ async function callTool(config, name, args) {
       const data = await repoAPI(token, owner, repo, "GET", "");
       return `📦 ${data.full_name}\n📝 ${data.description || "(无描述)"}\n⭐ Stars: ${data.stargazers_count} | 🍴 Forks: ${data.forks_count}\n🌿 默认分支: ${data.default_branch}\n🔗 ${data.html_url}\n📅 创建: ${data.created_at}\n📅 更新: ${data.updated_at}`;
     }
+    case "create_files": {
+ const results = [];
+ const commitMsg = args.commit_message || "Batch upload via MCP";
+ for (const file of args.files) {
+ try {
+ let sha;
+ // 尝试获取已有文件的 SHA（用于更新）
+ try {
+ sha = (await repoAPI(token, owner, repo, "GET", `/contents/${file.path}`))?.sha;
+ } catch (e) {}
+ 
+ await repoAPI(token, owner, repo, "PUT", `/contents/${file.path}`, {
+ message: file.message || commitMsg,
+ content: btoa(unescape(encodeURIComponent(file.content))),
+ ...(sha && { sha })
+ });
+ results.push(`✅ ${sha ? "已更新" : "已创建"}: ${file.path}`);
+ } catch (e) {
+ results.push(`❌ ${file.path}: ${e.message}`);
+ }
+ }
+ return results.join("\n");
+}
     case "list_files": {
       const path = args.path || "";
       const data = await repoAPI(token, owner, repo, "GET", `/contents/${path}`);
