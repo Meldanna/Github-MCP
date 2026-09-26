@@ -1,11 +1,12 @@
-// ==================== GitHub MCP Server v2.1 ====================
+// ==================== GitHub MCP Server v2.1.1 ====================
 // Cloudflare Worker 版
 // 特性：密钥验证 + 多用户支持 + 17 个工具
 //
 // 使用方式：
+//   自己用：https://域名/mcp/你的密钥
 //   自己用：https://域名/mcp?key=你的密钥
-//   别人用：请求头带 Authorization: Bearer ghp_他的token
-//   别人用：或 URL 带 https://域名/mcp?token=ghp_他的token
+//   别人用：https://域名/mcp?token=ghp_他的token
+//   别人用：请求头 Authorization: Bearer ghp_他的token
 
 // ==================== 工具定义 ====================
 const REPO_PARAMS = {
@@ -179,8 +180,19 @@ const TOOLS = [
 // ==================== 认证 ====================
 function authenticate(request, env) {
   const url = new URL(request.url);
+  const pathname = url.pathname;
 
-  // 方式1：URL 带密钥（自己用）→ 使用环境变量中的 Token
+  // 方式1：路径带密钥 /mcp/密钥（推荐，兼容性最好）
+  const pathMatch = pathname.match(/^\/mcp\/(.+)$/);
+  if (pathMatch && pathMatch[1] === env.MCP_SECRET) {
+    return {
+      token: env.GITHUB_TOKEN,
+      owner: env.GITHUB_OWNER,
+      repo: env.GITHUB_REPO
+    };
+  }
+
+  // 方式2：URL 参数带密钥 ?key=密钥
   const key = url.searchParams.get("key");
   if (key && key === env.MCP_SECRET) {
     return {
@@ -190,28 +202,19 @@ function authenticate(request, env) {
     };
   }
 
-  // 方式2：URL 带 GitHub Token（别人用）
+  // 方式3：URL 带 GitHub Token ?token=ghp_xxx（别人用）
   const urlToken = url.searchParams.get("token");
   if (urlToken && (urlToken.startsWith("ghp_") || urlToken.startsWith("github_pat_"))) {
-    return {
-      token: urlToken,
-      owner: "",
-      repo: ""
-    };
+    return { token: urlToken, owner: "", repo: "" };
   }
 
-  // 方式3：Header 带 GitHub Token（别人用）
+  // 方式4：Header 带 GitHub Token（别人用）
   const authHeader = request.headers.get("Authorization") || "";
   const headerToken = authHeader.replace("Bearer ", "");
   if (headerToken && (headerToken.startsWith("ghp_") || headerToken.startsWith("github_pat_"))) {
-    return {
-      token: headerToken,
-      owner: "",
-      repo: ""
-    };
+    return { token: headerToken, owner: "", repo: "" };
   }
 
-  // 未认证
   return null;
 }
 
@@ -303,8 +306,7 @@ async function callTool(config, name, args) {
       const url = `https://api.github.com/search/code?q=${encodeURIComponent(args.keyword)}+repo:${owner}/${repo}`;
       const data = await githubFetch(token, "GET", url);
       if (!data.items || data.items.length === 0) return `没有找到包含 "${args.keyword}" 的代码`;
-      const results = data.items.slice(0, 10).map(item => `📄 ${item.path}`);
-      return `找到 ${data.total_count} 个结果:\n${results.join("\n")}`;
+      return `找到 ${data.total_count} 个结果:\n${data.items.slice(0, 10).map(item => `📄 ${item.path}`).join("\n")}`;
     }
     case "create_or_update_file": {
       let sha;
@@ -385,7 +387,7 @@ async function handleMCP(request, env, config) {
       return jsonRpcResponse(id, {
         protocolVersion: "2024-11-05",
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "GitHub MCP Server", version: "2.1.0" }
+        serverInfo: { name: "GitHub MCP Server", version: "2.1.1" }
       });
     case "notifications/initialized": return null;
     case "tools/list": return jsonRpcResponse(id, { tools: TOOLS });
@@ -423,23 +425,20 @@ export default {
       return new Response(JSON.stringify({
         status: "ok",
         server: "GitHub MCP Server",
-        version: "2.1.0",
-        auth: "Use ?key=SECRET for owner, or ?token=ghp_xxx / Authorization header for public users",
+        version: "2.1.1",
         tools: TOOLS.length + " tools available"
       }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // MCP 端点
-    if (url.pathname === "/mcp" && request.method === "POST") {
-      // 认证检查
+    // MCP 端点：/mcp 或 /mcp/密钥
+    if ((url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) && request.method === "POST") {
       const config = authenticate(request, env);
       if (!config) {
         return new Response(JSON.stringify({
           error: "Unauthorized",
-          message: "请提供认证信息",
           usage: {
-            owner_mode: "URL 添加 ?key=你的密钥",
-            public_mode: "URL 添加 ?token=ghp_你的GitHub_Token 或请求头 Authorization: Bearer ghp_xxx"
+            owner: "/mcp/你的密钥 或 /mcp?key=密钥",
+            public: "/mcp?token=ghp_xxx 或 Header Authorization: Bearer ghp_xxx"
           }
         }), {
           status: 401,
