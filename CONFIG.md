@@ -1,72 +1,68 @@
-# ⚡ 配置速查卡
-
-> 换域名 / 重建 Worker 时，复制这里的值就行
+# ⚡ 配置速查卡 v2.1
 
 ---
 
 ## 1. Cloudflare Worker 环境变量
 
-直接复制粘贴到 Worker 设置里：
+| 变量名 | 值 | 类型 | 说明 |
+|--------|-----|------|------|
+| `GITHUB_OWNER` | `Meldanna` | 文本 | 默认仓库所有者 |
+| `GITHUB_REPO` | `The-Riparian-Gaze` | 文本 | 默认仓库 |
+| `GITHUB_TOKEN` | `ghp_xxxxxxxx` | **加密** | 你的 GitHub Token |
+| `MCP_SECRET` | `自己设一个密码` | **加密** | MCP 访问密钥 🆕 |
 
-| 变量名 | 值 | 类型 |
-|--------|-----|------|
-| `GITHUB_OWNER` | `Meldanna` | 文本 |
-| `GITHUB_REPO` | `The-Riparian-Gaze` | 文本 |
-| `GITHUB_TOKEN` | ⚠️ 需要去 GitHub 重新生成 | 加密 |
-
----
-
-## 2. Worker 代码
-
-复制本仓库的 `worker.js` 文件内容，粘贴到 Worker 编辑器。
+> ⚠️ `MCP_SECRET` 是新增的！设一个你记得住的密码，比如 `myMcp2024!`
 
 ---
 
-## 3. DNS 配置
+## 2. MCP 地址格式
 
-在 Cloudflare DNS 记录里添加（把 `新域名` 换成你买的域名）：
-
-### GitHub MCP
+### 你自己用（带密钥）
 ```
-类型: CNAME
-名称: github
-目标: 不用手动添加，通过 Worker 自定义域绑定会自动创建
+https://github.windlife.site/mcp?key=你设置的MCP_SECRET
 ```
 
-### 以后的其他服务（按需添加）
+### 别人用（带自己的 GitHub Token）
 ```
-search.新域名    → search-mcp.xxx.workers.dev
-img.新域名       → img-worker.xxx.workers.dev
-docs.新域名      → docs-worker.xxx.workers.dev
+https://github.windlife.site/mcp?token=ghp_他的token
+```
+
+### 裸访问
+```
+https://github.windlife.site/mcp  → ❌ 401 拒绝
 ```
 
 ---
 
-## 4. MCP 客户端地址
-
-换域名后，只需要改这一行：
+## 3. 安全机制
 
 ```
-https://github.新域名/mcp
-```
-
----
-
-## 5. 换域名完整流程（5分钟）
-
-```
-步骤1：腾讯云买新域名
-步骤2：Cloudflare 添加站点 → 获取 NS
-步骤3：腾讯云改 DNS 为 Cloudflare 的 NS
-步骤4：等待生效
-步骤5：Worker → 设置 → 自定义域 → 删除旧域名 → 添加 github.新域名
-步骤6：MCP 客户端地址改为 https://github.新域名/mcp
-完事！代码和环境变量完全不用动！
+请求进来
+  ↓
+有 ?key=密钥 且密钥正确？ → ✅ 用你的 Token（管理员模式）
+  ↓ 否
+有 ?token=ghp_xxx？       → ✅ 用他的 Token（公共模式）
+  ↓ 否
+有 Authorization 头？      → ✅ 用他的 Token（公共模式）
+  ↓ 否
+                           → ❌ 401 拒绝
 ```
 
 ---
 
-## 6. Token 生成速查
+## 4. 换域名流程（3分钟）
+
+```
+步骤1：买新域名
+步骤2：Cloudflare 添加站点 → 获取 NS → 改 DNS
+步骤3：Worker 自定义域 → 删旧的 → 加新的
+步骤4：MCP 客户端地址改为 https://github.新域名/mcp?key=你的密钥
+代码和环境变量不用动！
+```
+
+---
+
+## 5. Token 生成
 
 ```
 地址：https://github.com/settings/tokens
@@ -74,7 +70,7 @@ https://github.新域名/mcp
 范围：All repositories
 权限：
   ✅ Contents → Read and Write
-  ✅ Issues → Read and Write  
+  ✅ Issues → Read and Write
   ✅ Pull requests → Read and Write
   ✅ Administration → Read and Write
   ✅ Metadata → Read
@@ -82,13 +78,12 @@ https://github.新域名/mcp
 
 ---
 
-## 📌 重点
+## 6. 分享给别人用
 
-> **换域名不需要动 Worker 代码和环境变量！**
-> 
-> 只需要：
-> 1. 新域名指向 Cloudflare
-> 2. Worker 绑定新域名
-> 3. MCP 客户端改地址
-> 
-> 三步搞定，3分钟。
+告诉他们：
+
+> MCP 地址：`https://github.windlife.site/mcp?token=你自己的GitHub_Token`
+>
+> 去 github.com/settings/tokens 生成一个 Token 就能用了！
+
+你的密钥不会泄露，别人只能操作他们自己的仓库 ✅
